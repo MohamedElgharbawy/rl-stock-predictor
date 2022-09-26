@@ -1,2 +1,2 @@
-# rl-stock-predictor
+# Reinforcement Learning Stock Predictor
 CS285 final project
