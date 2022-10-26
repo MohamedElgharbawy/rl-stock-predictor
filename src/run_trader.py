@@ -1,6 +1,5 @@
 import os
 import time
-import csv
 
 from rl_trainer import RL_Trainer
 from trading_agent import TradingAgent
@@ -26,9 +25,9 @@ def main():
     # convert to dictionary
     params = vars(args)
 
-    ##################################
+    #################################
     ### CREATE DIRECTORY FOR LOGGING
-    ##################################
+    #################################
 
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
 
@@ -44,7 +43,8 @@ def main():
     print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
 
     agent = Trading_Agent(env, params)
-    agent.rl_trainer.run_training_loop()
+    # TODO - do the training here (we might want to keep it all in trading_agent.py and scrap rl_trainer altogether)
+    #agent.rl_trainer.run_training_loop()
 
 
 if __name__ == "__main__":

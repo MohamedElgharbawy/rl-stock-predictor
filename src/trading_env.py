@@ -1,57 +1,56 @@
 import sys, math
 import numpy as np
+import csv
 
-import gym
 
 class TradingEnv: #(gym.Env): # not going to make it a gym env this time, but will use similar conventions
     continuous = True
 
-    def __init__(self, dataset):
+    def __init__(self, dataset_file):
         
-        self.num_stocks_held = 0
-        self.stock_prices = dataset
+        self.curr_stock_price = None # This is the only part of the state that the env will hold on to. The windown is held only by the trading agent.
 
-        self.viewer = None
         self.curr_step = None
         self._reset()
+
+        csvfile = open(dataset_file, 'r')
+        self.csv_reader = csv.reader(csvfile)
+        header = self.csv_reader.next()
+        print(header)
+
+        first_day = self.csv_reader.next()
+        self.curr_stock_price = float(first_day[2]) #MAGIC NUMBER HERE 
+        # Note: the data is in the format "Symbol,Date,Open,High,Low,Close,AdjClose,Volume"
+        # For now, I am just going to use the opening stock price from day to day (ie. at index 2)
 
     def _destroy(self):
         pass
 
     def _reset(self):
         self.curr_step = 0
-        # reset stuff here
-        return self._step(NOOP)[0]
+        return self._step(None)
 
     def _step(self, action): 
-        '''Action should be a single number of how much value of the stock we should buy or sell at a given timestep.
+        '''Action should be a single number of how much money worth of the stock we should buy or sell at a given timestep.
         Advance the timestep, and get reward based on how much the stock price changes and how much we own'''
+        if action is None: # reset action
+            pass
+        nextday = self.csv_reader.next()
+        next_stock_price = nextday[2]
 
-        stocks_to_buy = action / 
-        reward = 0
-        
-        state = self.
+        num_stocks_to_buy = action / self.curr_stock_price
+        reward = (next_stock_price - self.curr_stock_price) * num_stocks_to_buy
+      
+        self.curr_stock_price = self.next_stock_price
 
-        return np.array(state), reward, done, info
+        # todo
+        done = None
+        info = None
+
+        return np.array([next_stock_price]), reward, done, info
 
     def reset(self):
         return self._reset()
 
-    def step(self, *args, **kwargs):
-        return self._step(*args, **kwargs)
-
-if __name__=="__main__":
-    #env = LunarLander()
-    s = env.reset()
-    total_reward = 0
-    steps = 0
-    while True:
-        a = heuristic(env, s)
-        s, r, done, info = env.step(a)
-        env.render()
-        total_reward += r
-        if steps % 20 == 0 or done:
-            print(["{:+0.2f}".format(x) for x in s])
-            print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-        steps += 1
-        if done: break
+    def step(self, action):
+        return self._step(action)

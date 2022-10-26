@@ -311,52 +311,12 @@ class RL_Trainer(object):
             # HINT1: use the agent's sample function
             # HINT2: how much data = self.params['train_batch_size']
             ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self.agent.sample(self.params['train_batch_size'])
-            #print("ac_batch", ac_batch)
-
-            # TODO use the sampled data to train an agent
-            # HINT: use the agent's train function
-            # HINT: keep the agent's training log for debugging
             train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
             all_logs.append(train_log)
         return all_logs
 
     ####################################
     ####################################
-    def perform_dqn_logging(self, all_logs):
-        last_log = all_logs[-1]
-
-        episode_rewards = self.env.get_episode_rewards()
-        if len(episode_rewards) > 0:
-            self.mean_episode_reward = np.mean(episode_rewards[-100:])
-        if len(episode_rewards) > 100:
-            self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
-
-        logs = OrderedDict()
-
-        logs["Train_EnvstepsSoFar"] = self.agent.t
-        print("Timestep %d" % (self.agent.t,))
-        if self.mean_episode_reward > -5000:
-            logs["Train_AverageReturn"] = np.mean(self.mean_episode_reward)
-        print("mean reward (100 episodes) %f" % self.mean_episode_reward)
-        if self.best_mean_episode_reward > -5000:
-            logs["Train_BestReturn"] = np.mean(self.best_mean_episode_reward)
-        print("best mean reward %f" % self.best_mean_episode_reward)
-
-        if self.start_time is not None:
-            time_since_start = (time.time() - self.start_time)
-            print("running time %f" % time_since_start)
-            logs["TimeSinceStart"] = time_since_start
-
-        logs.update(last_log)
-
-        sys.stdout.flush()
-
-        for key, value in logs.items():
-            print('{} : {}'.format(key, value))
-            self.logger.log_scalar(value, key, self.agent.t)
-        print('Done logging...\n\n')
-
-        self.logger.flush()
 
     def perform_logging(self, itr, paths, eval_policy, train_video_paths, all_logs):
 
