@@ -13,7 +13,10 @@ class TradingEnv(gym.Env):
     def __init__(self, symbol, window_size=10):
         self.curr_window = deque(maxlen=window_size)
         self.num_stocks_owned = 0
-        self.portfolio_value = 0
+        self.starting_amount = 10000
+        self.bank_account = self.starting_amount
+        self.allowance_per_day = 30
+        self.portfolio_value = self.starting_amount
 
         dataset = pd.read_csv("data/processed/final_dataset.csv")
         self.stock_history = dataset[dataset["Symbol"] == symbol]
@@ -28,6 +31,9 @@ class TradingEnv(gym.Env):
 
     def _reset(self):
         self.day_index = 0
+        self.bank_account = self.starting_amount
+        self.portfolio_value = self.bank_account
+        self.num_stocks_owned = 0
         for t in range(self.window_size):
             self.curr_window.append(self._get_day(self.day_index).loc["Open"])
             self.day_index += 1
@@ -46,21 +52,35 @@ class TradingEnv(gym.Env):
         self.curr_window.append(next_stock_price)
         next_state = np.array(list(self.curr_window))
 
-        # TODO: Determine how we want to handle a limit of buying stocks, for now 1 = one stock
-        num_stocks_to_buy = action
-        if action < 0 and abs(action) > self.num_stocks_owned:
-            # Clip and sell everything
-            num_stocks_to_buy = -self.num_stocks_owned
+        # TODO: Add bank account, reward = starting amount - (bank acc + value of stocks)
+        # TODO: NN outputs [-1, 1]. [-1, 0) represents selling 0-100% of stocks, [0, 1] represents buying 0-100% of bank acc worth of stock.
+        # TODO: Get daily allowance
 
-        self.num_stocks_owned += num_stocks_to_buy
-        reward = (next_stock_price - curr_stock_price) * self.num_stocks_owned
+        # Allowance
+        self.bank_account += self.allowance_per_day
+
+        portfolio_value_without_trading_today = self.num_stocks_owned * next_stock_price + self.bank_account
+
+        # Sell action % of our stocks
+        if action < 0 and self.num_stocks_owned > 0:
+            num_stocks_to_sell = -1 * action * self.num_stocks_owned
+            self.bank_account += num_stocks_to_sell * next_stock_price
+            self.num_stocks_owned *= -1 * action
+
+        # Buy action * bank account worth of stock
+        if action >= 0:
+            value_of_stocks_to_buy = self.bank_account * action
+            self.num_stocks_owned += value_of_stocks_to_buy/next_stock_price
+            self.bank_account -= value_of_stocks_to_buy
+
+        self.portfolio_value = self.num_stocks_owned * next_stock_price + self.bank_account
+
+        reward = self.portfolio_value - portfolio_value_without_trading_today
 
         self.curr_stock_price = next_stock_price
         self.day_index += 1
 
         done = self.day_index == len(self.stock_history.index)
-
-        self.portfolio_value = self.num_stocks_owned * next_stock_price
 
         return next_state, reward, done, None
 
