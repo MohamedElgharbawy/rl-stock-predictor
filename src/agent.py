@@ -20,7 +20,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent:
     """Interacts with and learns form environment."""
 
-    def __init__(self, state_size, action_size):
+    def __init__(self, stock_size, finance_size, action_size):
         """Initialize an Agent object.
 
         Params
@@ -30,12 +30,9 @@ class Agent:
             seed (int): random seed
         """
 
-        self.state_size = state_size
-        self.action_size = action_size
-
         # Q- Network
-        self.qnetwork_local = DQN(state_size, action_size).to(device)
-        self.qnetwork_target = DQN(state_size, action_size).to(device)
+        self.qnetwork_local = DQN(stock_size, finance_size, action_size).to(device)
+        self.qnetwork_target = DQN(stock_size, finance_size, action_size).to(device)
 
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
@@ -45,9 +42,9 @@ class Agent:
         # Initialize time step (for updating every UPDATE_EVERY step)
         self.t_step = 0
 
-    def step(self, state, action, reward, next_step, done):
+    def step(self, stock_state, finance_state, action, reward, next_stock_state, next_finance_state, done):
         # Save experience in replay memory
-        self.memory.add(state, action, reward, next_step, done)
+        self.memory.add(stock_state, finance_state, action, reward, next_stock_state, next_finance_state, done)
 
         # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % UPDATE_EVERY
@@ -57,17 +54,18 @@ class Agent:
                 experience = self.memory.sample()
                 self.learn(experience, GAMMA)
 
-    def act(self, state, eps=0):
+    def act(self, stock_state, finance_state, eps=0):
         """Returns action for given state as per current policy
         Params
         =======
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        stock_state = torch.from_numpy(stock_state).float().unsqueeze(0).to(device)
+        finance_state = torch.from_numpy(finance_state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
-            action_values = self.qnetwork_local(state)
+            action_values = self.qnetwork_local(stock_state, finance_state)
         self.qnetwork_local.train()
 
         # Epsilon -greedy action selction
@@ -84,7 +82,7 @@ class Agent:
             experiences (Tuple[torch.Variable]): tuple of (s, a, r, s', done) tuples
             gamma (float): discount factor
         """
-        states, actions, rewards, next_state, done = experiences
+        stock_state, finance_state, actions, rewards, next_stock_state, next_finance_state, done = experiences
 
         criterion = torch.nn.MSELoss()
         # Local model is one which we need to train so it's in training mode
@@ -94,10 +92,10 @@ class Agent:
         # We will update target model weights with soft_update function
         self.qnetwork_target.eval()
         # shape of output from the model (batch_size,action_dim) = (64,4)
-        predicted_targets = self.qnetwork_local(states).gather(1, actions)
+        predicted_targets = self.qnetwork_local(stock_state, finance_state).gather(1, actions)
 
         with torch.no_grad():
-            labels_next = self.qnetwork_target(next_state).detach().max(1)[0].unsqueeze(1)
+            labels_next = self.qnetwork_target(next_stock_state, next_finance_state).detach().max(1)[0].unsqueeze(1)
 
         # .detach() ->  Returns a new Tensor, detached from the current graph.
         labels = rewards + (gamma * labels_next * (1 - done))

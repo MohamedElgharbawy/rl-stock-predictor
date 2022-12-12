@@ -1,7 +1,4 @@
 from collections import OrderedDict
-import pickle
-import os
-import sys
 import time
 
 import gym
