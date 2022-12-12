@@ -22,6 +22,11 @@ class TradingEnv(gym.Env):
         self.stock_history = dataset[dataset["Symbol"] == symbol]
         self.stock_history["Date"] = pd.to_datetime(self.stock_history["Date"])
         self.stock_history.sort_values(by="Date")
+        
+        # company = pd.read_csv("finance-ratios/processed/final_dataset.csv")
+        # self.company_history = dataset[dataset["Symbol"] == symbol]
+        # self.company_history["Date"] = pd.to_datetime(self.stock_history["period_end_date"])
+        # self.company_history.sort_values(by="Date")
 
         self.window_size = window_size
         self.reset()
