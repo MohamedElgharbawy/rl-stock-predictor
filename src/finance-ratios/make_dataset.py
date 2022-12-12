@@ -26,6 +26,10 @@ def make_dataset():
     
     # print(concatenated_df)  
     concatenated_df.to_csv("finance-ratios/processed/final_dataset.csv", index=False)
+    for company in ['AAPL', 'AMZN', 'COST', 'DIS', 'F', 'GM', 'GOOG', 'INTC', 'JNJ', 'LCID', 'META', 'MRNA', 'MSFT', 'NFLX', 'NKE', 'PFE', 'RBLX', 'RIVN', 'SBUX', 'TGT', 'TSLA', 'TWTR', 'WMT']:
+        comp = concatenated_df[concatenated_df["Symbol"] == company]
+        comp = comp.drop('Symbol', axis=1)
+        comp.to_csv("finance-ratios/processed/%s.csv" % company, index=False)
 
 if __name__ == "__main__":
     make_dataset()
