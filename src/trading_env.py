@@ -1,56 +1,74 @@
-import sys, math
+from typing import Optional, Union, List
+from collections import deque
+import gym
 import numpy as np
-import csv
+import pandas as pd
 
+from gym.core import RenderFrame
 
-class TradingEnv: #(gym.Env): # not going to make it a gym env this time, but will use similar conventions
-    continuous = True
+class TradingEnv(gym.Env):
+    def render(self, mode="human") -> Optional[Union[RenderFrame, List[RenderFrame]]]:
+        pass
 
-    def __init__(self, dataset_file):
-        
-        self.curr_stock_price = None # This is the only part of the state that the env will hold on to. The windown is held only by the trading agent.
+    def __init__(self, symbol, window_size=10):
+        self.curr_window = deque(maxlen=window_size)
+        self.num_stocks_owned = 0
+        self.portfolio_value = 0
 
-        self.curr_step = None
-        self._reset()
+        dataset = pd.read_csv("data/processed/final_dataset.csv")
+        self.stock_history = dataset[dataset["Symbol"] == symbol]
+        self.stock_history["Date"] = pd.to_datetime(self.stock_history["Date"])
+        self.stock_history.sort_values(by="Date")
 
-        csvfile = open(dataset_file, 'r')
-        self.csv_reader = csv.reader(csvfile)
-        header = self.csv_reader.next()
-        print(header)
-
-        first_day = self.csv_reader.next()
-        self.curr_stock_price = float(first_day[2]) #MAGIC NUMBER HERE 
-        # Note: the data is in the format "Symbol,Date,Open,High,Low,Close,AdjClose,Volume"
-        # For now, I am just going to use the opening stock price from day to day (ie. at index 2)
+        self.window_size = window_size
+        self.reset()
 
     def _destroy(self):
         pass
 
     def _reset(self):
-        self.curr_step = 0
-        return self._step(None)
+        self.day_index = 0
+        for t in range(self.window_size):
+            self.curr_window.append(self._get_day(self.day_index).loc["Open"])
+            self.day_index += 1
+        return np.array(list(self.curr_window))
 
     def _step(self, action): 
-        '''Action should be a single number of how much money worth of the stock we should buy or sell at a given timestep.
-        Advance the timestep, and get reward based on how much the stock price changes and how much we own'''
-        if action is None: # reset action
-            pass
-        nextday = self.csv_reader.next()
-        next_stock_price = nextday[2]
+        """Action should be a single number of how much money worth of the stock we should buy or sell at a given timestep.
+        Advance the timestep, and get reward based on how much the stock price changes and how much we own"""
 
-        num_stocks_to_buy = action / self.curr_stock_price
-        reward = (next_stock_price - self.curr_stock_price) * num_stocks_to_buy
-      
-        self.curr_stock_price = self.next_stock_price
+        curr_stock_price = self.curr_window[-1]
 
-        # todo
-        done = None
-        info = None
+        next_day = self._get_day(self.day_index)
+        next_stock_price = next_day.loc["Open"]
 
-        return np.array([next_stock_price]), reward, done, info
+        self.curr_window.popleft()
+        self.curr_window.append(next_stock_price)
+        next_state = np.array(list(self.curr_window))
+
+        # TODO: Determine how we want to handle a limit of buying stocks, for now 1 = one stock
+        num_stocks_to_buy = action
+        if action < 0 and abs(action) > self.num_stocks_owned:
+            # Clip and sell everything
+            num_stocks_to_buy = -self.num_stocks_owned
+
+        self.num_stocks_owned += num_stocks_to_buy
+        reward = (next_stock_price - curr_stock_price) * self.num_stocks_owned
+
+        self.curr_stock_price = next_stock_price
+        self.day_index += 1
+
+        done = self.day_index == len(self.stock_history.index)
+
+        self.portfolio_value = self.num_stocks_owned * next_stock_price
+
+        return next_state, reward, done, None
 
     def reset(self):
         return self._reset()
 
     def step(self, action):
         return self._step(action)
+
+    def _get_day(self, index):
+        return self.stock_history.iloc[index]
