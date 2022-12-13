@@ -29,6 +29,8 @@ class TradingEnv(gym.Env):
         self.company_history["Date"] = pd.to_datetime(self.company_history["period_end_date"])
         self.company_history.sort_values(by="Date")
 
+        assert(len(self.company_history) > 0)
+
         self.window_size = window_size
         self.reset()
 
@@ -46,7 +48,7 @@ class TradingEnv(gym.Env):
             day_date = day.loc["Date"]
             quarter = self._get_quarter(self.quarter_index)
             quarter_date = quarter.loc["Date"]
-            while quarter_date.year < day_date.year or quarter_date.month < day_date.month:
+            while (quarter_date.year < day_date.year or quarter_date.month < day_date.month) and self.quarter_index != len(self.company_history.index) - 1:
                 self.quarter_index += 1
                 quarter = self._get_quarter(self.quarter_index)
                 quarter_date = quarter.loc["Date"]
@@ -105,12 +107,12 @@ class TradingEnv(gym.Env):
         day_date = next_day.loc["Date"]
         quarter_date = quarter.loc["Date"]
 
-        while quarter_date.year < day_date.year or quarter_date.month < day_date.month:
+        while (quarter_date.year < day_date.year or quarter_date.month < day_date.month) and self.quarter_index != len(self.company_history.index) - 1:
             self.quarter_index += 1
             quarter = self._get_quarter(self.quarter_index)
             quarter_date = quarter.loc["Date"]
 
-        done = self.day_index == len(self.stock_history.index) or self.quarter_index == len(self.company_history.index)
+        done = self.day_index == len(self.stock_history.index)
 
         return next_stock_state, next_finance_state, reward, done, None
 
